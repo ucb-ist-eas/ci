@@ -241,7 +241,6 @@ $template = %q{
 ################################################################################
 # Cron Jobs
 ################################################################################
-
 desc "load cron jobs from crontab"
 task :load_crontab do
   crontab_file = "#{$config['app_name']}/config/crontab.txt"
@@ -254,7 +253,6 @@ end
 ################################################################################
 # Misc
 ################################################################################
-
 desc "curls the ~/app_monitor url and performs a basic health check"
 task :health_check => [:parse_args] do
   $stdout.print("Performing health check: ")
