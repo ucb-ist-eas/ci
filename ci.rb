@@ -134,7 +134,7 @@ test: &test
    
 legacy_test: &legacy_test
   adapter: sqlite3
-  database: legacy_#{app_name}.sqlite3
+  database: db/legacy_test.sqlite3
 
 ci:
    <<: *test
