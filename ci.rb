@@ -131,9 +131,17 @@ test: &test
    username: jenkins
    password: jenkins
    host: localhost
+   
+legacy_test:
+  adapter: sqlite3
+  database: legacy_#{app_name}.sqlite3
 
 ci:
    <<: *test
+   
+legacy_ci:
+   <<: *legacy_test
+   
     DB
     File.open("config/database.yml", "w") do |f|
       f.write(db_yml_contents)
