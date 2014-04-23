@@ -132,7 +132,7 @@ test: &test
    password: jenkins
    host: localhost
    
-legacy_test:
+legacy_test: &legacy_test
   adapter: sqlite3
   database: legacy_#{app_name}.sqlite3
 
