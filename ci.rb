@@ -5,7 +5,7 @@ require 'fileutils'
 require 'warbler'
 
 class CiBuild
-  attr_accessor :app_name, :workspace_path, :jenkins_home, :run_specs_flag, :compile_assets_flag
+  attr_accessor :app_name, :workspace_path, :jenkins_home, :run_specs_flag, :compile_assets_flag, :build_number
 
   def initialize(args={})
     @app_name = args.fetch(:app_name)
@@ -14,6 +14,8 @@ class CiBuild
 
     @run_specs_flag = args.fetch(:run_specs_flag, true)
     @compile_assets_flag = args.fetch(:compile_assets_flag, true)
+
+    @build_number = args.fetch(:build_number, nil)
   end
 
   def run
@@ -28,6 +30,8 @@ class CiBuild
       end
 
       compile_assets if compile_assets_flag
+
+      record_build_number
       archive_war_file
     end
   end
@@ -131,17 +135,17 @@ test: &test
    username: jenkins
    password: jenkins
    host: localhost
-   
+
 legacy_test: &legacy_test
   adapter: sqlite3
   database: db/legacy_test.sqlite3
 
 ci:
    <<: *test
-   
+
 legacy_ci:
    <<: *legacy_test
-   
+
     DB
     File.open("config/database.yml", "w") do |f|
       f.write(db_yml_contents)
@@ -164,6 +168,14 @@ legacy_ci:
     FileUtils.mkdir(target) unless File.exists?(target)
     FileUtils.rm_rf(link) if File.exists?(link)
     File.symlink(target, link) unless File.symlink?(link)
+  end
+
+  def record_build_number
+    if build_number
+      File.open("BUILD", "w") do |f|
+        f.write(build_number)
+      end
+    end
   end
 
   def archive_war_file
@@ -202,7 +214,14 @@ if __FILE__ == $PROGRAM_NAME
   def extract_optional_args(optional_args)
     optional_args.inject({}) do |hash, arg|
       key, val = arg.split("=")
-      val = (val == "false") ? false : true
+      if val == "false"
+        val = false
+      elsif val.nil?
+        val = true
+      else
+        val = val
+      end
+
       key = key[2..-1].gsub("-", "_").to_sym
       hash[key] = val
       hash
@@ -218,5 +237,6 @@ if __FILE__ == $PROGRAM_NAME
   optional_args = extract_optional_args(ARGV[1..-1])
 
 
+  p args.merge(optional_args)
   CiBuild.new(args.merge(optional_args)).run
 end
