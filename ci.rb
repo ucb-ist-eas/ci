@@ -172,7 +172,9 @@ legacy_ci:
 
   def record_build_number
     if build_number
-      File.open("BUILD", "w") do |f|
+      path = File.join(workspace_path, 'BUILD')
+      File.open(path, "w") do |f|
+        puts "Storing build number #{build_number} into #{path}"
         f.write(build_number)
       end
     end
