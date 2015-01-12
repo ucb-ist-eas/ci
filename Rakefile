@@ -5,10 +5,6 @@ require 'ostruct'
 sync = true
 
 
-OK_MSG    = "[  OK  ]"
-FAIL_MSG  = "[FAILED]"
-
-
 ################################################################################
 # Initialization
 ################################################################################
@@ -51,19 +47,19 @@ end
 ################################################################################
 desc "Deploy the war file to tomcat webapps dir"
 task :deploy_war => [:parse_args] do
-  print("Deploying war to tomcat: ")
+  progress "Deploying war to tomcat" do
 
-  webapps  = $config.webapps_dir
-  app      = $config.app_name
-  root     = "ROOT"
-  app_user = $config.app_user
+    webapps  = $config.webapps_dir
+    app      = $config.app_name
+    root     = "ROOT"
+    app_user = $config.app_user
 
-  `sudo -u #{app_user} rm -rf #{webapps}/#{root}/*`
-  `rm -rf #{webapps}/#{root}`
-  `cp -R #{app} #{webapps}/`
-  `mv #{webapps}/#{app} #{webapps}/#{root}`
+    `sudo -u #{app_user} rm -rf #{webapps}/#{root}/*`
+    `rm -rf #{webapps}/#{root}`
+    `cp -R #{app} #{webapps}/`
+    `mv #{webapps}/#{app} #{webapps}/#{root}`
 
-  puts(OK_MSG)
+  end
 end
 
 
@@ -78,7 +74,7 @@ task :tomcat_stop => [:parse_args] do
 
     output = `#{status_cmd}`.chomp
     if $?.exitstatus == 3
-     puts(output)
+      puts(output)
     else
       output = `#{stop_cmd}`.chomp
       if $?.exitstatus == 0
@@ -117,15 +113,15 @@ def configure_web_xml
 
   lines = File.readlines(web_xml)
   File.open(web_xml, "w") do |f|
-     lines.each do |line|
-       if line =~ /<param-value>production<\/param-value>/
-         f.puts("<param-value>#{$config.rails_env}<\/param-value>")
-       elsif line =~ /<param-value>ci<\/param-value>/
-         f.puts("<param-value>#{$config.rails_env}<\/param-value>")
-       else
-         f.puts(line)
-       end
-     end
+    lines.each do |line|
+      if line =~ /<param-value>production<\/param-value>/
+        f.puts("<param-value>#{$config.rails_env}<\/param-value>")
+      elsif line =~ /<param-value>ci<\/param-value>/
+        f.puts("<param-value>#{$config.rails_env}<\/param-value>")
+      else
+        f.puts(line)
+      end
+    end
   end
 end
 
@@ -140,36 +136,36 @@ end
 
 desc "Embed and link configs"
 task :symlink_configs do
-  print "Embedding configs and linking directories"
+  progress "Embedding configs and linking directories" do
 
-  app_dir = $config.app_name
+    app_dir = $config.app_name
 
-  FileUtils.cd(app_dir) do
-    extract_war
-    copy_yml_configs
-    configure_web_xml
-    symlink_tmp_to_temp
-  end	
+    FileUtils.cd(app_dir) do
+      extract_war
+      copy_yml_configs
+      configure_web_xml
+      symlink_tmp_to_temp
+    end	
 
-  puts(OK_MSG)
+  end
 end
 
 desc "download project from svn"
 task :svn_export => [:svn_war_exists] do
-  print "Exporting code from SVN (#{$config.release_url}): "
+  progress "Exporting code from SVN (#{$config.release_url})" do
 
-  app_dir = $config.app_name
+    app_dir = $config.app_name
 
-  if File.exists?(app_dir)
-    puts "App dir #{app_dir} already exists.  Incomplete deploy?"
-    exit(1)
+    if File.exists?(app_dir)
+      puts "App dir #{app_dir} already exists.  Incomplete deploy?"
+      exit(1)
+    end
+
+    run_cmd("svn export #{$config.release_url}")
+    FileUtils.mkdir(app_dir)
+    FileUtils.mv($config.war, app_dir)
+
   end
-
-  run_cmd("svn export #{$config.release_url}")
-  FileUtils.mkdir(app_dir)
-  FileUtils.mv($config.war, app_dir)
-
-  puts(OK_MSG)
 end
 
 desc "download project from github"
@@ -179,24 +175,24 @@ task :github_release_export do
     exit 1
   end
 
-  print "Exporting build war file from Github for tag #{$config.branch}: "
-  
-  app_dir = $config.app_name
-  orig_war = "#{$config.app_name}.war"
+  progress "Exporting build war file from Github for tag #{$config.branch}" do
 
-  cmd =  %{github-release download
+    app_dir = $config.app_name
+    orig_war = "#{$config.app_name}.war"
+
+    cmd =  %{github-release download
              -s #{$config.github_api_token} 
              -u ucb-ist-eas
              -r #{$config.app_name}
              -t #{$config.branch}
              -n #{orig_war}}.gsub(/[[:space:]]+/, " ")
 
-  run_cmd cmd, fail_msg: "Could not download the release.  Is the tag right?"
+             run_cmd cmd, fail_msg: "Could not download the release.  Is the tag right?"
 
-  FileUtils.mkdir_p(app_dir)
-  FileUtils.mv(orig_war, File.join(app_dir, $config.war))
+             FileUtils.mkdir_p(app_dir)
+             FileUtils.mv(orig_war, File.join(app_dir, $config.war))
 
-  puts(OK_MSG)
+  end
 end
 
 task :svn_war_exists => [:svn_project_exists] do
@@ -220,30 +216,26 @@ end
 ################################################################################
 desc "remove maintenance file and enable web access to app"
 task :enable_web => [:parse_args] do
-  print("Enabling tomcat proxy, remove maint message: ")
+  progress "Enabling tomcat proxy, remove maint message" do
 
-  file = "/home/app_relmgt/#{$config.app_name}"
-  FileUtils.rm_rf(file) if File.exists?(file)
-  FileUtils.rm_rf($config.maint_file) if File.exists?($config.maint_file)
+    file = "/home/app_relmgt/#{$config.app_name}"
+    FileUtils.rm_rf(file) if File.exists?(file)
+    FileUtils.rm_rf($config.maint_file) if File.exists?($config.maint_file)
 
-  puts(OK_MSG)
+  end
 end
 
 desc "display maintenance file and disable web access to app"
 task :disable_web => [:parse_args] do
-  print("Disabling tomcat proxy, display maint message: ")
+  progress "Disabling tomcat proxy, display maint message" do
 
-  maint_start = Time.now.strftime("%m-%d-%Y %H:%M:%S")
-  template = ERB.new($template)
-  File.open($config.maint_file, "w") do |f|
-    f.puts template.result(binding)
-  end
+    maint_start = Time.now.strftime("%m-%d-%Y %H:%M:%S")
+    template = ERB.new($template)
+    File.open($config.maint_file, "w") do |f|
+      f.puts template.result(binding)
+    end
 
-  if File.exists?($config.maint_file)
-    puts(OK_MSG)
-  else
-    $stderr.puts(FAIL_MSG)
-    exit(1)
+    raise "file is missing" unless File.exists?($config.maint_file)
   end
 end
 
@@ -301,32 +293,58 @@ end
 
 desc "curls the ~/app_monitor url and performs a basic health check"
 task :health_check => [:parse_args] do
-  print("Performing health check: ")
+  progress "Performing health check" do 
 
-  result = `curl -m 10 -s localhost:#{$config.tomcat_port}/app_monitor`.chomp
-  if result == "OK"
-    puts(OK_MSG)
-  else
-    puts(FAIL_MSG)
-    $stderr.puts(result)
-    exit(1)
+    result = `curl -m 10 -s localhost:#{$config.tomcat_port}/app_monitor`.chomp
+
+    raise result unless result == "OK"
+
   end
 end
 
 def run_cmd(cmd_str, opts = {})
   IO.popen(cmd_str) { |f|0
-    until f.eof?
-      str = f.gets
-      puts(str) if $debug_mode
-    end
+                      until f.eof?
+                        str = f.gets
+                        puts(str) if $debug_mode
+                      end
   }
 
   if opts[:fail_msg] && $?.exitstatus.to_i != 0
-    puts(FAIL_MSG)
-    $stderr.puts(opts[:fail_msg])
-    exit(1)
+    raise(opts[:fail_msg])
+  end
+end
+
+def progress(msg)
+  print "%-59s" % [msg + ":"]
+  yield
+  puts "[ #{"  OK  ".green} ]" 
+rescue
+  puts "[ #{"FAILED".red} ]"
+  exit(1)
+end
+
+class String
+  # colorization
+  def colorize(color_code)
+    "\e[#{color_code}m#{self}\e[0m"
   end
 
+  def red
+    colorize(31)
+  end
+
+  def green
+    colorize(32)
+  end
+
+  def yellow
+    colorize(33)
+  end
+
+  def pink
+    colorize(35)
+  end
 end
 
 
