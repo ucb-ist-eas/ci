@@ -14,15 +14,13 @@ FAIL_MSG  = "[FAILED]"
 ################################################################################
 task :default => :deploy
 desc "deploy the application"
-task :deploy => [:parse_args, :svn_export, :disable_web, :tomcat_stop, :deploy_war, :load_crontab, :tomcat_start, :enable_web]
-task :gdeploy => [:parse_args, :github_release_export, :disable_web, :tomcat_stop, :deploy_war, :load_crontab, :tomcat_start, :enable_web]
+task :deploy => [:parse_args, :svn_export, :symlink_configs, :disable_web, :tomcat_stop, :deploy_war, :load_crontab, :tomcat_start, :enable_web]
+task :gdeploy => [:parse_args, :github_release_export, :symlink_configs, :disable_web, :tomcat_stop, :deploy_war, :load_crontab, :tomcat_start, :enable_web]
 
 desc "Full restart without deploy"
 task :restart => [:disable_web, :tomcat_stop, :tomcat_start, :enable_web]
 
 task :parse_args do
-  $dry_run = true
-
   unless ENV['APP']
     $stderr.puts "Usage: rake APP=<app_name>"
     exit(1)
