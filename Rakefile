@@ -318,9 +318,9 @@ end
 def progress(msg)
   print "%-59s" % [msg + ":"]
   yield
-  puts "[ #{"  OK  ".green} ]" 
+  puts "[#{"  OK  ".green}]" 
 rescue
-  puts "[ #{"FAILED".red} ]"
+  puts "[#{"FAILED".red}]"
   exit(1)
 end
 
