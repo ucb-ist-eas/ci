@@ -2,7 +2,7 @@ require 'fileutils'
 require 'erb'
 require 'yaml'
 require 'ostruct'
-$stdout.sync = true
+sync = true
 
 
 OK_MSG    = "[  OK  ]"
@@ -14,8 +14,8 @@ FAIL_MSG  = "[FAILED]"
 ################################################################################
 task :default => :deploy
 desc "deploy the application"
-task :deploy => [:parse_args, :disable_web, :tomcat_stop, :svn_export, :deploy_war, :load_crontab, :tomcat_start, :enable_web]
-task :gdeploy => [:parse_args, :git_checkout, :build_war, :disable_web, :tomcat_stop, :deploy_war, :load_crontab, :tomcat_start, :enable_web]
+task :deploy => [:parse_args, :svn_export, :disable_web, :tomcat_stop, :deploy_war, :load_crontab, :tomcat_start, :enable_web]
+task :gdeploy => [:parse_args, :github_release_export, :disable_web, :tomcat_stop, :deploy_war, :load_crontab, :tomcat_start, :enable_web]
 
 desc "Full restart without deploy"
 task :restart => [:disable_web, :tomcat_stop, :tomcat_start, :enable_web]
@@ -43,17 +43,17 @@ task :parse_args do
   $config.work_dir    = "#{work_dir}/#{$config.app_name}"
 
   if $config.debug
-    $stdout.puts($config.inspect)
+    puts($config.inspect)
   end
 end
 
 
 ################################################################################
-# Build/Deploy War
+# Deploy War
 ################################################################################
 desc "Deploy the war file to tomcat webapps dir"
-task :deploy_war => [:svn_export, :parse_args] do
-  $stdout.print("Deploying war to tomcat: ")
+task :deploy_war => [:parse_args] do
+  print("Deploying war to tomcat: ")
 
   webapps  = $config.webapps_dir
   app      = $config.app_name
@@ -65,7 +65,7 @@ task :deploy_war => [:svn_export, :parse_args] do
   `cp -R #{app} #{webapps}/`
   `mv #{webapps}/#{app} #{webapps}/#{root}`
 
-  $stdout.puts(OK_MSG)
+  puts(OK_MSG)
 end
 
 
@@ -80,11 +80,11 @@ task :tomcat_stop => [:parse_args] do
 
     output = `#{status_cmd}`.chomp
     if $?.exitstatus == 3
-     $stdout.puts(output)
+     puts(output)
     else
       output = `#{stop_cmd}`.chomp
       if $?.exitstatus == 0
-        $stdout.puts(output)
+        puts(output)
       else
         $stderr.puts(output)
         exit(1)
@@ -97,7 +97,7 @@ desc "start tomcat application server"
 task :tomcat_start => [:parse_args] do
   unless $dry_run
     output = `sudo service tomcat6-#{$config.app_name} start`.chomp
-    $stdout.puts(output)
+    puts(output)
   end
 end
 
@@ -142,7 +142,7 @@ end
 
 desc "Embed and link configs"
 task :symlink_configs do
-  $stdout.print "Embedding configs and linking directories"
+  print "Embedding configs and linking directories"
 
   app_dir = $config.app_name
 
@@ -153,12 +153,12 @@ task :symlink_configs do
     symlink_tmp_to_temp
   end	
 
-  $stdout.puts(OK_MSG)
+  puts(OK_MSG)
 end
 
 desc "download project from svn"
 task :svn_export => [:svn_war_exists] do
-  $stdout.print "Exporting code from SVN (#{$config.release_url}): "
+  print "Exporting code from SVN (#{$config.release_url}): "
 
   app_dir = $config.app_name
 
@@ -171,7 +171,34 @@ task :svn_export => [:svn_war_exists] do
   FileUtils.mkdir(app_dir)
   FileUtils.mv($config.war, app_dir)
 
-  $stdout.puts(OK_MSG)
+  puts(OK_MSG)
+end
+
+desc "download project from github"
+task :github_release_export do 
+  if ENV['TAG'].nil?
+    puts "TAG environment variable is required to use github releases"
+    exit 1
+  end
+
+  print "Exporting build war file from Github for tag #{$config.branch}: "
+  
+  app_dir = $config.app_name
+  orig_war = "#{$config.app_name}.war"
+
+  cmd =  %{github-release download
+             -s #{$config.github_api_token} 
+             -u ucb-ist-eas
+             -r #{$config.app_name}
+             -t #{$config.branch}
+             -n #{orig_war}}.gsub(/[[:space:]]+/, " ")
+
+  run_cmd cmd, fail_msg: "Could not download the release.  Is the tag right?"
+
+  FileUtils.mkdir_p(app_dir)
+  FileUtils.mv(orig_war, File.join(app_dir, $config.war))
+
+  puts(OK_MSG)
 end
 
 task :svn_war_exists => [:svn_project_exists] do
@@ -182,37 +209,6 @@ end
 task :svn_project_exists => [:parse_args] do
   run_cmd "svn ls #{$config.svn_project_url} 2>&1",
     fail_msg: "SVN URL not found: #{$config.svn_project_url}"
-end
-
-desc "Build a war file localy"
-task :build_war => [:git_checkout] do
-
-  FileUtils.cd($config.work_dir) do
-    File.open("BUILD", "w+") do |file|
-      file.print $config.branch
-    end
-    run_cmd "bundle"
-    run_cmd "bundle exec rake ci:war:archive"
-  end
-end
-
-desc "Check out the requested branch/tag from git"
-task :git_checkout => [:ensure_work_directory] do
-
-  url = $config.git_project_url || raise("Missing git repo url")
-  branch = "origin/#{$config.branch}"
-
-  $stdout.puts "Checking out branch #{branch}"
-
-  FileUtils.cd($config.work_dir) do
-
-    if !File.directory?('.git')
-      run_cmd "git clone #{url} .", fail_msg: "Git cannot clone #{url} into work dir"
-    end
-
-    run_cmd "git fetch --tags", fail_msg: "Cannot fetch from git"
-    run_cmd "git checkout #{branch}", fail_msg: "Cannot checkout #{branch}"
-  end
 end
 
 desc "Create work directory if necessary"
@@ -226,18 +222,18 @@ end
 ################################################################################
 desc "remove maintenance file and enable web access to app"
 task :enable_web => [:parse_args] do
-  $stdout.print("Enabling tomcat proxy, remove maint message: ")
+  print("Enabling tomcat proxy, remove maint message: ")
 
   file = "/home/app_relmgt/#{$config.app_name}"
   FileUtils.rm_rf(file) if File.exists?(file)
   FileUtils.rm_rf($config.maint_file) if File.exists?($config.maint_file)
 
-  $stdout.puts(OK_MSG)
+  puts(OK_MSG)
 end
 
 desc "display maintenance file and disable web access to app"
 task :disable_web => [:parse_args] do
-  $stdout.print("Disabling tomcat proxy, display maint message: ")
+  print("Disabling tomcat proxy, display maint message: ")
 
   maint_start = Time.now.strftime("%m-%d-%Y %H:%M:%S")
   template = ERB.new($template)
@@ -246,7 +242,7 @@ task :disable_web => [:parse_args] do
   end
 
   if File.exists?($config.maint_file)
-    $stdout.puts(OK_MSG)
+    puts(OK_MSG)
   else
     $stderr.puts(FAIL_MSG)
     exit(1)
@@ -307,13 +303,13 @@ end
 
 desc "curls the ~/app_monitor url and performs a basic health check"
 task :health_check => [:parse_args] do
-  $stdout.print("Performing health check: ")
+  print("Performing health check: ")
 
   result = `curl -m 10 -s localhost:#{$config.tomcat_port}/app_monitor`.chomp
   if result == "OK"
-    $stdout.puts(OK_MSG)
+    puts(OK_MSG)
   else
-    $stdout.puts(FAIL_MSG)
+    puts(FAIL_MSG)
     $stderr.puts(result)
     exit(1)
   end
@@ -328,7 +324,7 @@ def run_cmd(cmd_str, opts = {})
   }
 
   if opts[:fail_msg] && $?.exitstatus.to_i != 0
-    $stdout.puts(FAIL_MSG)
+    puts(FAIL_MSG)
     $stderr.puts(opts[:fail_msg])
     exit(1)
   end
