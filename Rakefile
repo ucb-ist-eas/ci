@@ -9,9 +9,14 @@ sync = true
 # Initialization
 ################################################################################
 task :default => :deploy
+
 desc "deploy the application"
-task :deploy => [:parse_args, :svn_export, :symlink_configs, :disable_web, :tomcat_stop, :deploy_war, :load_crontab, :tomcat_start, :enable_web]
-task :gdeploy => [:parse_args, :github_release_export, :symlink_configs, :disable_web, :tomcat_stop, :deploy_war, :load_crontab, :tomcat_start, :enable_web]
+
+task :do_deploy => [:symlink_configs, :disable_web, :tomcat_stop,
+                    :deploy_war, :load_crontab, :tomcat_start, :enable_web]
+
+task :deploy => [:parse_args, :svn_export, :do_deploy]
+task :gdeploy => [:parse_args, :github_release_export, :do_deploy]
 
 desc "Full restart without deploy"
 task :restart => [:disable_web, :tomcat_stop, :tomcat_start, :enable_web]
@@ -169,7 +174,7 @@ task :svn_export => [:svn_war_exists] do
 end
 
 desc "download project from github"
-task :github_release_export do 
+task :github_release_export => :parse_args do 
   if ENV['TAG'].nil?
     puts "TAG environment variable is required to use github releases"
     exit 1
