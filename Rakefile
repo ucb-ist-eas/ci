@@ -51,7 +51,7 @@ end
 # Deploy War
 ################################################################################
 desc "Deploy the war file to tomcat webapps dir"
-task :deploy_war => [:parse_args] do
+task :deploy_war => [:parse_args, :ensure_work_directory] do
   progress "Deploying war to tomcat" do
 
     webapps  = $config.webapps_dir
@@ -59,10 +59,12 @@ task :deploy_war => [:parse_args] do
     root     = "ROOT"
     app_user = $config.app_user
 
-    `sudo -u #{app_user} rm -rf #{webapps}/#{root}/*`
-    `rm -rf #{webapps}/#{root}`
-    `cp -R #{app} #{webapps}/`
-    `mv #{webapps}/#{app} #{webapps}/#{root}`
+    FileUtils.cd($config.work_dir) do
+      run_cmd "sudo -u #{app_user} rm -rf #{webapps}/#{root}/*"
+      run_cmd "rm -rf #{webapps}/#{root}"
+      run_cmd "cp -R . #{webapps}/#{app}"
+      run_cmd "mv #{webapps}/#{app} #{webapps}/#{root}"
+    end
 
   end
 end
@@ -140,12 +142,10 @@ def extract_war
 end
 
 desc "Embed and link configs"
-task :symlink_configs do
+task :symlink_configs => [:ensure_work_directory] do
   progress "Embedding configs and linking directories" do
 
-    app_dir = $config.app_name
-
-    FileUtils.cd(app_dir) do
+    FileUtils.cd($config.work_dir) do
       extract_war
       copy_yml_configs
       configure_web_xml
@@ -156,7 +156,7 @@ task :symlink_configs do
 end
 
 desc "download project from svn"
-task :svn_export => [:svn_war_exists] do
+task :svn_export => [:parse_args, :svn_war_exists, :ensure_work_directory] do
   progress "Exporting code from SVN (#{$config.release_url})" do
 
     app_dir = $config.app_name
@@ -167,14 +167,12 @@ task :svn_export => [:svn_war_exists] do
     end
 
     run_cmd("svn export #{$config.release_url}")
-    FileUtils.mkdir(app_dir)
-    FileUtils.mv($config.war, app_dir)
 
   end
 end
 
 desc "download project from github"
-task :github_release_export => :parse_args do 
+task :github_release_export => [:parse_args, :ensure_work_directory] do 
   if ENV['TAG'].nil?
     puts "TAG environment variable is required to use github releases"
     exit 1
@@ -194,8 +192,7 @@ task :github_release_export => :parse_args do
 
              run_cmd cmd, fail_msg: "Could not download the release.  Is the tag right?"
 
-             FileUtils.mkdir_p(app_dir)
-             FileUtils.mv(orig_war, File.join(app_dir, $config.war))
+             FileUtils.mv(orig_war, $config.war)
 
   end
 end
@@ -214,6 +211,8 @@ desc "Create work directory if necessary"
 task :ensure_work_directory => [:parse_args] do
   run_cmd "mkdir -p #{$config.work_dir}", 
     fail_msg: "Cannot create work directory: #{$config.work_dir}"
+
+  FileUtils.cd($config.work_dir)
 end
 
 ################################################################################
@@ -223,7 +222,7 @@ desc "remove maintenance file and enable web access to app"
 task :enable_web => [:parse_args] do
   progress "Enabling tomcat proxy, remove maint message" do
 
-    file = "/home/app_relmgt/#{$config.app_name}"
+    file = $config.work_dir
     FileUtils.rm_rf(file) if File.exists?(file)
     FileUtils.rm_rf($config.maint_file) if File.exists?($config.maint_file)
 
@@ -308,6 +307,7 @@ task :health_check => [:parse_args] do
 end
 
 def run_cmd(cmd_str, opts = {})
+  p cmd_str
   IO.popen(cmd_str) { |f|0
                       until f.eof?
                         str = f.gets
@@ -341,14 +341,6 @@ class String
 
   def green
     colorize(32)
-  end
-
-  def yellow
-    colorize(33)
-  end
-
-  def pink
-    colorize(35)
   end
 end
 
