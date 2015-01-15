@@ -307,7 +307,6 @@ task :health_check => [:parse_args] do
 end
 
 def run_cmd(cmd_str, opts = {})
-  p cmd_str
   IO.popen(cmd_str) { |f|0
                       until f.eof?
                         str = f.gets
