@@ -198,7 +198,7 @@ task :github_release_export => [:parse_args, :ensure_work_directory] do
     end
   end
 
-  progress "Exporting build war file from Github for tag #{$config.tag}" do
+  progress "Exporting war file from GitHub for tag #{$config.tag}" do
 
     app_dir = $config.app_name
     orig_war = "#{$config.app_name}.war"
