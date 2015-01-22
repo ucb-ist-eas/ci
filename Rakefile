@@ -2,8 +2,9 @@ require 'fileutils'
 require 'erb'
 require 'yaml'
 require 'ostruct'
-sync = true
+require 'github_api'
 
+sync = true
 
 ################################################################################
 # Initialization
@@ -36,10 +37,19 @@ task :parse_args do
   $config.debug       = (ENV['DEBUG'] == 'true')
   $config.app_name    = ENV['APP']
   $config.app_user    = "app_#{ENV['APP']}"
-  $config.branch      = ENV['TAG'] || ENV['BRANCH'] || 'master'
+  $config.tag         = ENV['TAG']
+  $config.branch      = ENV['BRANCH'] || $config.tag || 'master'
   $config.war         = ENV['WAR'] || ($config.branch == 'master') ? 'trunk.war' : "#{$config.branch}.war"
   $config.release_url = "#{$config.svn_project_url}/#{$config.war}"
   $config.work_dir    = "#{work_dir}/#{$config.app_name}"
+
+  if $config.github_api_token
+    $github = Github.new do |c|
+      c.oauth_token = $config.github_api_token
+      c.user = 'ucb-ist-eas'
+      c.repo = $config.app_name
+    end
+  end
 
   if $config.debug
     puts($config.inspect)
@@ -173,12 +183,22 @@ end
 
 desc "download project from github"
 task :github_release_export => [:parse_args, :ensure_work_directory] do 
-  if ENV['TAG'].nil?
-    puts "TAG environment variable is required to use github releases"
-    exit 1
+  if $config.tag.nil?
+
+    # Look at the list of releases and pick with the highest number matching the branch
+    releases = $github.repos.releases.list('ucb-ist-eas', $config.app_name)
+    branch_tags = releases.map(&:tag_name).select { |t| t =~ /\A#{$config.branch}-\d+\Z/ }
+    branch_tags.sort_by! { |t| t =~ /-(\d+)\Z/; p $1; $1.to_i }
+    
+    if branch_tags.empty?
+      puts "No tags found for BRANCH=#{$config.branch}. Use TAG variable to specify a particular tag."
+      exit 1
+    else
+      $config.tag = branch_tags.last
+    end
   end
 
-  progress "Exporting build war file from Github for tag #{$config.branch}" do
+  progress "Exporting build war file from Github for tag #{$config.tag}" do
 
     app_dir = $config.app_name
     orig_war = "#{$config.app_name}.war"
@@ -187,12 +207,14 @@ task :github_release_export => [:parse_args, :ensure_work_directory] do
              -s #{$config.github_api_token} 
              -u ucb-ist-eas
              -r #{$config.app_name}
-             -t #{$config.branch}
-             -n #{orig_war}}.gsub(/[[:space:]]+/, " ")
+             -t #{$config.tag}
+             -n #{orig_war}}
 
-             run_cmd cmd, fail_msg: "Could not download the release.  Is the tag right?"
+    cmd.gsub!(/[[:space:]]+/, " ")
 
-             FileUtils.mv(orig_war, $config.war)
+    run_cmd cmd, fail_msg: "Could not download the release.  Is the tag right?  Is github-release installed?"
+
+    FileUtils.mv(orig_war, $config.war)
 
   end
 end
