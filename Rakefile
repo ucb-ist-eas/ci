@@ -188,7 +188,7 @@ task :github_release_export => [:parse_args, :ensure_work_directory] do
     # Look at the list of releases and pick with the highest number matching the branch
     releases = $github.repos.releases.list('ucb-ist-eas', $config.app_name)
     branch_tags = releases.map(&:tag_name).select { |t| t =~ /\A#{$config.branch}-\d+\Z/ }
-    branch_tags.sort_by! { |t| t =~ /-(\d+)\Z/; p $1; $1.to_i }
+    branch_tags.sort_by! { |t| t =~ /-(\d+)\Z/; $1.to_i }
     
     if branch_tags.empty?
       puts "No tags found for BRANCH=#{$config.branch}. Use TAG variable to specify a particular tag."
