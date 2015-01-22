@@ -1,17 +1,3 @@
-ci
-==
-
-Simple scripts to supplement CI build.  This applies to jenkins only -- Travis uses a different mechanism.
-
-Usage:
-
-```
-ci.rb APP_NAME [--run-specs-false] [--compile-assets-flag]
-
---run-specs-flag        (defaults is true)
---compile-assets-flag   (defaults is true)
-```
-
 Rakefile
 ========
 
@@ -32,3 +18,32 @@ rake gdeploy APP=<app name> TAG=<tag>
 # Restarting
 rake restart APP=<app name>
 ```
+
+ucb\_rails\_ci.rake
+=======
+
+Automatically included in any project that wants to be deployed via
+Github/Travis.  Basic tasks for prepping and precompiling a rails project.
+
+Examples:
+
+```bash
+rake ci:setup   # any preliminary setup
+rake ci:war     # Build a war file for JRuby deployment
+```
+
+ci.rb
+=====
+
+Simple scripts to supplement CI build.  This applies to jenkins only -- Travis
+uses a different mechanism.
+
+Usage:
+
+```
+ci.rb APP_NAME [--run-specs-false] [--compile-assets-flag]
+
+--run-specs-flag        (defaults is true)
+--compile-assets-flag   (defaults is true)
+```
+
