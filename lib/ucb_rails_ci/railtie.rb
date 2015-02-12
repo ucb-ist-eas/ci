@@ -5,7 +5,7 @@ module UcbRailsCi
     railtie_name :ucb_rails_ci
 
     rake_tasks do
-      load "lib/tasks/ucb_rails_ci.rake"
+      load File.join(File.dirname(__FILE__), '..', '..', 'tasks', 'ucb_rails_ci.rake')
     end
   end
 end
