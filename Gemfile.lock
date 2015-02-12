@@ -1,3 +1,13 @@
+PATH
+  remote: .
+  specs:
+    ucb_rails_ci (1.0.0)
+      builder
+      bundler
+      github_api
+      rake
+      warbler
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -45,8 +55,4 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  builder
-  bundler
-  github_api
-  rake
-  warbler
+  ucb_rails_ci!
