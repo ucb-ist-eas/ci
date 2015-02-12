@@ -109,3 +109,13 @@ namespace :ci do
   end
 
 end
+
+namespace :config do
+  task :copy_defaults do
+    Dir.glob("config/*.yml.example").each do |file_path|
+      file_name = File.basename(file_path).split(".")[0..1].join(".")
+      dir_name = File.dirname(file_path)
+      FileUtils.cp(file_path, File.join(dir_name, file_name))
+    end
+  end
+end
