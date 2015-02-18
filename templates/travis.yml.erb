@@ -1,0 +1,36 @@
+branches:
+  except: 
+    - /^.*-\d+$/  # exclude build tags
+    - /^.*\/.*+$/ # exclude private branches (with slash)
+language: ruby
+env: SQLITE=true
+rvm:
+  - jruby-19mode
+install: bundle install --full-index --without='development production' --path vendor/bundle --jobs=3 --retry=3
+script:
+  - bundle exec rake ci:setup
+  - bundle exec rake db:migrate
+  - bundle exec rake db:test:prepare
+  - mkdir -p tmp/cache
+  - xvfb-run bundle exec rspec
+cache: 
+  directories:
+    - vendor/bundle
+before_deploy:
+  - bundle exec rake ci:war RAILS_ENV=ci
+  - git tag $TRAVIS_BRANCH-$TRAVIS_BUILD_NUMBER # remove this if you want to tag manually
+deploy:
+  provider: releases
+  api-key: 
+    <%= api_key %>
+  file: <%= app_name %>.war
+  skip_cleanup: true
+  on:
+    #tags: true # enable if you want to only build via manual tags
+    all_branches: true
+# addons:
+#   code_climate:
+#     repo_token: (insert repo token from code climate)
+notifications:
+  slack:
+    <%= slack_key %>
