@@ -14,4 +14,5 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'builder'
   s.add_runtime_dependency 'warbler'
   s.add_runtime_dependency 'github_api'
+  s.add_runtime_dependency 'travis'
 end

@@ -22,7 +22,6 @@ before_deploy:
 deploy:
   provider: releases
   api-key: 
-    <%= api_key %>
   file: <%= app_name %>.war
   skip_cleanup: true
   on:
@@ -31,6 +30,7 @@ deploy:
 # addons:
 #   code_climate:
 #     repo_token: (insert repo token from code climate)
+<% if slack_key %>
 notifications:
   slack:
-    <%= slack_key %>
+<% end %>

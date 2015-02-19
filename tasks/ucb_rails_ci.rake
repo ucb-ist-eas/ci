@@ -111,11 +111,51 @@ namespace :ci do
 end
 
 namespace :config do
+
+  desc "copy .example files into their real locations"
   task :copy_defaults do
     Dir.glob("config/*.yml.example").each do |file_path|
       file_name = File.basename(file_path).split(".")[0..1].join(".")
       dir_name = File.dirname(file_path)
       FileUtils.cp(file_path, File.join(dir_name, file_name))
     end
+  end
+
+  desc "Generate .travis.yml file for use with Travis-CI"
+  task :generate_travis_yml do
+
+    require 'erb'
+
+    `travis help`
+    if $? == 1
+      puts "This command requires the travis CLI.  Install it with 'gem install travis'"
+      exit 1
+    end
+
+    filename = File.join(File.dirname(__FILE__), "..", "templates", "travis.yml.erb")
+    input = File.read(filename)
+    erb = ERB.new(input)
+
+    print "App Name: "
+    app_name = $stdin.gets.strip
+
+    print "Github API Key: "
+    api_key = $stdin.gets.strip
+
+    print "Slack Integration Key (optional): "
+    slack_key = $stdin.gets.strip
+    slack_key = nil if slack_key == ''
+
+    text = erb.result(binding)
+    File.write(Rails.root.join('.travis.yml'), text)
+
+    `travis encrypt --add deploy.api-key #{api_key}`
+
+    if slack_key
+      `travis encrypt --add notifications.slack #{slack_key}`
+    end
+
+    `travis lint`
+
   end
 end
