@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name        = 'ucb_rails_ci'
-  s.version     = '1.0.0'
+  s.version     = '1.0.1'
   s.summary     = "CI and deployment integration for UCB Rails apps"
   s.description = "Tools for enabling Rails apps to be built on Travis and deployed from GitHub"
   s.authors     = ["Ken Miller"]
