@@ -5,7 +5,8 @@ Gem::Specification.new do |s|
   s.description = "Tools for enabling Rails apps to be built on Travis and deployed from GitHub"
   s.authors     = ["Ken Miller"]
   s.email       = 'ken@berkeley.edu'
-  s.files       = Dir["lib/**/*.rb"]
+  s.date        = Time.now.utc.strftime("%Y-%m-%d")
+  s.files       = `git ls-files`.split("\n")
   s.homepage    = 'https://github.com/ucb-ist-eas/ucb_rails_ci'
   s.bindir      = 'bin'
 
